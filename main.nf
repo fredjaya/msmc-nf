@@ -2,6 +2,12 @@
 
 nextflow.enable.dsl=2
 
+params.out="/scratch/Scape/fred/msmc"
+params.ref="${params.out}/GCF_003254395.2_Amel_HAv3.1_genomic.fna"
+params.prefix="capensis"
+params.k="35"
+
+
 process bwa_index {
     
     publishDir params.outdir

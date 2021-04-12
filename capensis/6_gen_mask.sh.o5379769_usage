@@ -1,0 +1,26 @@
+-- Job Summary -------------------------------------------------------
+Job Id: 5379769.pbsserver for user fjay0039 in queue highmem
+Job Name: 6_gen_mask.sh
+Project: RDS-FSC-Scape-RW
+Exit Status: 0
+Job run as chunks (hpc204:ncpus=1:mem=31457280kb)
+Walltime requested:   01:00:00 :      Walltime used:   00:00:06
+                               :   Walltime percent:       0.2%
+-- Nodes Summary -----------------------------------------------------
+-- node hpc204 summary
+    Cpus requested:          1 :          Cpus used:    unknown
+          Cpu Time:    unknown :        Cpu percent:    unknown
+     Mem requested:     30.0GB :           Mem used:    unknown
+                               :        Mem percent:    unknown
+
+-- WARNINGS ----------------------------------------------------------
+
+** Low Walltime utilisation.  While this may be normal, it may help to check the
+** following:
+**   Did the job parameters specify more walltime than necessary? Requesting
+**   lower walltime could help your job to start sooner.
+**   Did your analysis complete as expected or did it crash before completing?
+**   Did the application run more quickly than it should have? Is this analysis
+**   the one you intended to run?
+** 
+-- End of Job Summary ------------------------------------------------

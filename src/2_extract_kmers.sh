@@ -6,6 +6,7 @@
 
 mkdir -p ${OUT}/mask
 OUT=${OUT}/mask
+SPLITFA=$SEQB/splitfa
 
 cd $OUT
 $SPLITFA $REF $k | split -l 20000000 && \
