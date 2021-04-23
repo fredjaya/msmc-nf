@@ -10,9 +10,6 @@ rm seqbility-20091110.tar.bz2 && \
 cd seqbility-20091110 && \
 make
 
-# Install msmc-tools
-
-
 ## ENVIRONMENT VARIABLES ##
 export OUT=/scratch/Scape/fred/msmc
 export SRC=/home/fjay0039/msmc-nf/src
