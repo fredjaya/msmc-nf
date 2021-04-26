@@ -30,4 +30,7 @@ cd /scratch/Scape/fred/2010_gvcf
 ls *.vcf | xargs -I {} -n 1 -P 16 sh -c 'echo 'bgzipping' {} && bgzip -c {} > {}.gz && echo 'tabixing' {}.gz && tabix -p vcf {}.gz'
 # Moved to ${OUT}/vcf
 cd ${OUT}/vcf
-#for i in *.vcf.gz; do `cat ${OUT}/scaffolds.txt` | xargs -I {} -n 1 -P 10 sh -c 'tabix $i {} > '${i}'_{}.vcf'
+cat ${OUT}/scaffolds.txt | xargs -I {} -n 1 -P 177 sh -c 'tabix ${SAMPLE} {} > ${SAMPLE}_{}.vcf'
+
+# Generate .vcf and masks with bamCaller .py
+${SRC}/9_bam_caller.sh SAMPLE
