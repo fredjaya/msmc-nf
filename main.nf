@@ -1,21 +1,9 @@
 #!/usr/bin/env nextflow
 
 /*
- * PARAMETERS AND CHANNELS
+ * SETUP 
  */ 
 
-//params.out="/scratch/Scape/fred/msmc"
-params.in="/media/meep/GenomeAbyss/capensis"
-params.out="/media/meep/GenomeAbyss/nf_test"
-params.ref="${params.in}/GCF_003254395.2_Amel_HAv3.1_genomic.fna"
-params.tools="/home/meep/Desktop/Biocomputing/msmc-tools"
-params.prefix="capensis"
-params.k="35"
-params.samples="${params.in}/samples.txt"
-params.scaffolds="${params.in}/true_scaffolds.txt"
-params.coverage="${params.in}/coverage/*.txt"
-params.bam="${params.in}/recal_bam/Fdrone{_recalibrated_reads.bam,_recalibrated_reads.bai}"
-params.mask_genome="${params.in}/mask_indiv/*_*.genMask.bed.gz"
 /*
 Channel
     .fromPath(params.samples)
@@ -31,7 +19,7 @@ Channel
 */
 
 Channel.from("Fdrone", "Worker").set{samples_ch}
-Channel.from("NC_037653.1").into{scaffolds_bamcaller_ch;scaffolds_multihet_ch}
+Channel.from("NC_037653.1", "NC_037652.1", "NC_001566.1", "NW_020555788.1").into{scaffolds_bamcaller_ch;scaffolds_multihet_ch}
 
 Channel
     .fromFilePairs(params.bam)
@@ -42,8 +30,9 @@ log.info """\
 ===== DIRECTORIES AND PATHS =====
 in          = ${params.in}
 out         = ${params.out}
+trace       = ${params.trace}
 ref         = ${params.ref}
-tools       = ${params.tools}
+path        = ${params.path}
 prefix      = ${params.prefix}
 k           = ${params.k}
 samples     = ${params.samples}
@@ -75,7 +64,7 @@ process bamcaller {
         path ref from params.ref
         each scaffold from scaffolds_bamcaller_ch
         val out from params.in
-        val tools from params.tools
+        val path from params.path
     
     output:
         tuple val(sampleId), val(scaffold),
@@ -88,7 +77,7 @@ process bamcaller {
     """
     bcftools mpileup -Ou -r ${scaffold} --threads 8 -f ${ref} ${bam} | \
     bcftools call -c --threads 8 -V indels | \
-    ${tools}/bamCaller.py \
+    ${path}/msmc-tools/bamCaller.py \
         `cat ${out}/coverage/${sampleId}_${scaffold}.cov` \
         ${sampleId}_${scaffold}.indMask.bed.gz | \
         gzip -c > ${sampleId}_${scaffold}.bamCalled.vcf.gz
@@ -97,13 +86,16 @@ process bamcaller {
 }
 
 process multihet_single {
-
+    
+    //cpus 1
+    //time < 10m
+    //mem < 8GB
     conda 'python=3.7'
     
     publishDir "${params.out}/msmc_input"
 
     input:
-        val tools from params.tools
+        val path from params.path
         val dir from params.in
         val prefix from params.prefix
         tuple val(sampleId), val(scaffold),
@@ -114,14 +106,42 @@ process multihet_single {
 
     output:
         tuple val(sampleId), val(scaffold),
-            path("${sampleId}_${scaffold}.msmcInput.txt")
+            path("${sampleId}_${scaffold}.msmcInput.txt") into group_samples_ch 
  
     script:
     """
-    ${tools}/generate_multihetsep.py \
+    ${path}/msmc-tools/generate_multihetsep.py \
         --mask ${sampleId}_${scaffold}.indMask.bed.gz \
         --mask ${dir}/mask_genome/${prefix}_${scaffold}.genMask.bed.gz \
         ${sampleId}_${scaffold}.bamCalled.vcf.gz \
         > ${sampleId}_${scaffold}.msmcInput.txt 
     """
 }
+
+group_samples_ch
+    .groupTuple(by: 0)
+    .view()
+
+/*
+process msmc {
+
+    input:
+        val path from params.path
+    
+            
+        
+    output:
+        tuple val(sampleId), val(scaffold),
+            path("${sampleId}_${scaffold}.)
+         
+
+
+    script:
+    """
+    ${path}/msmc2-2.1.2-bin/build/release/msmc2 \
+        ${sampleId}_${scaffold}.msmcInput.txt \
+        -o ${sampleId}_${scaffold}
+
+    """
+}
+*/
