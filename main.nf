@@ -18,8 +18,11 @@ Channel
     .set { scaffolds_ch }
 */
 
-Channel.from("Fdrone", "Worker").set{samples_ch}
-Channel.from("NC_037653.1", "NC_037652.1", "NC_001566.1", "NW_020555788.1").into{scaffolds_bamcaller_ch;scaffolds_multihet_ch}
+Channel
+    .from("NC_037651.1", "NC_037653.1", "NC_037652.1", "NC_001566.1", "NW_020555788.1")
+    .into { scaffolds_bamcaller_ch
+            scaffolds_multihet_ch
+            }
 
 Channel
     .fromFilePairs(params.bam)
@@ -92,8 +95,6 @@ process multihet_single {
     //mem < 8GB
     conda 'python=3.7'
     
-    publishDir "${params.out}/msmc_input"
-
     input:
         val path from params.path
         val dir from params.in
@@ -106,7 +107,7 @@ process multihet_single {
 
     output:
         tuple val(sampleId), val(scaffold),
-            path("${sampleId}_${scaffold}.msmcInput.txt") into group_samples_ch 
+            path("${sampleId}_${scaffold}.msmcInput.txt") into concat_inputs_ch
  
     script:
     """
@@ -118,30 +119,43 @@ process multihet_single {
     """
 }
 
-group_samples_ch
-    .groupTuple(by: 0)
-    .view()
+process concat_inputs {
+    echo true
+    publishDir "${params.out}/msmc_input"
 
+    input:
+        tuple val(sampleId), val(scaffold), path(msmc_input) from concat_inputs_ch
+
+    output:
+        tuple val(sampleId), path("${sampleId}.mergedInput.txt") into msmc_in
+       
+    script:
+    """
+    echo "sampleId: ${sampleId}"
+    echo "msmc_input: ${msmc_input}"
+
+    cat ${msmc_input} > ${sampleId}.mergedInput.txt
+    """ 
+}
 /*
 process msmc {
+    
+    publishDir "${params.out}/msmc_output"
 
     input:
         val path from params.path
-    
-            
+        tuple val(sampleId), path("${sampleId}.mergedInput.txt") from msmc_in 
         
     output:
-        tuple val(sampleId), val(scaffold),
-            path("${sampleId}_${scaffold}.)
-         
-
-
+        path("${sampleId}.final.txt")
+        path("${sampleId}.loop.txt")
+        path("${sampleId}.log")
+ 
     script:
     """
     ${path}/msmc2-2.1.2-bin/build/release/msmc2 \
-        ${sampleId}_${scaffold}.msmcInput.txt \
-        -o ${sampleId}_${scaffold}
-
+        ${sampleId}.mergedInput.txt \
+        -o ${sampleId}
     """
 }
 */
