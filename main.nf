@@ -10,16 +10,12 @@ Channel
     .splitText()
     .map { it -> it.trim() } 
     .set { samples_ch }
+*/
 
 Channel
     .fromPath(params.scaffolds)
     .splitText()
     .map { it -> it.trim() } 
-    .set { scaffolds_ch }
-*/
-
-Channel
-    .from("NC_037651.1", "NC_037653.1", "NC_037652.1", "NC_001566.1", "NW_020555788.1")
     .into { scaffolds_bamcaller_ch
             scaffolds_multihet_ch
             }
@@ -27,6 +23,14 @@ Channel
 Channel
     .fromFilePairs(params.bam)
     .set { bamfiles_ch }
+
+Channel
+    .fromPath(params.mask_genome)
+    .map { file ->
+        def scaffold = (file.toString() =~ /(NC|NW)_\d+\.1/)[0][0]
+        return tuple('', scaffold, file)
+    }
+    .set { mask_genome_ch }
 
 log.info """\
 
@@ -88,63 +92,51 @@ process bamcaller {
 
 }
 
+mask_indiv
+    .join(vcf_bamcalled)
+    .join(mask_genome_ch, by:1)
+    .map { it -> [ it[1], it[0], it[2], it[6], it[4] ] }
+    .set { multihet_in }
+
 process multihet_single {
     
     //cpus 1
     //time < 10m
     //mem < 8GB
     conda 'python=3.7'
-    
+   
+    publishDir "${params.out}/msmc_input"
+ 
     input:
         val path from params.path
-        val dir from params.in
-        val prefix from params.prefix
         tuple val(sampleId), val(scaffold),
-            path("${sampleId}_${scaffold}.indMask.bed.gz") from mask_indiv
-        tuple val(sampleId), val(scaffold),
-            path("${sampleId}_${scaffold}.bamCalled.vcf.gz") from vcf_bamcalled
-        //tuple val(prefix), val(scaffold), path("${prefix}_${scaffold}.genMask.bed.gz") from params.mask_genome
+            path("${sampleId}_${scaffold}.indMask.bed.gz"),
+            path("${scaffold}.genMask.bed.gz"),
+            path("${sampleId}_${scaffold}.bamCalled.vcf.gz") from multihet_in
 
     output:
         tuple val(sampleId), val(scaffold),
-            path("${sampleId}_${scaffold}.msmcInput.txt") into concat_inputs_ch
+            path("${sampleId}_${scaffold}.msmcInput.txt") into msmc_in
  
     script:
     """
     ${path}/msmc-tools/generate_multihetsep.py \
         --mask ${sampleId}_${scaffold}.indMask.bed.gz \
-        --mask ${dir}/mask_genome/${prefix}_${scaffold}.genMask.bed.gz \
+        --mask ${scaffold}.genMask.bed.gz \
         ${sampleId}_${scaffold}.bamCalled.vcf.gz \
         > ${sampleId}_${scaffold}.msmcInput.txt 
     """
 }
 
-process concat_inputs {
-    echo true
-    publishDir "${params.out}/msmc_input"
-
-    input:
-        tuple val(sampleId), val(scaffold), path(msmc_input) from concat_inputs_ch
-
-    output:
-        tuple val(sampleId), path("${sampleId}.mergedInput.txt") into msmc_in
-       
-    script:
-    """
-    echo "sampleId: ${sampleId}"
-    echo "msmc_input: ${msmc_input}"
-
-    cat ${msmc_input} > ${sampleId}.mergedInput.txt
-    """ 
-}
-/*
 process msmc {
-    
+
+    echo true 
     publishDir "${params.out}/msmc_output"
 
     input:
         val path from params.path
-        tuple val(sampleId), path("${sampleId}.mergedInput.txt") from msmc_in 
+        tuple val(sampleId), val(scaffold),
+            path("${sampleId}_*.msmcInput.txt") from msmc_in.groupTuple(by: 0) 
         
     output:
         path("${sampleId}.final.txt")
@@ -154,8 +146,7 @@ process msmc {
     script:
     """
     ${path}/msmc2-2.1.2-bin/build/release/msmc2 \
-        ${sampleId}.mergedInput.txt \
-        -o ${sampleId}
+        -o ${sampleId} \
+        ${sampleId}_*.msmcInput.txt
     """
 }
-*/
