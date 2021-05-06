@@ -4,13 +4,11 @@
  * SETUP 
  */ 
 
-/*
 Channel
     .fromPath(params.samples)
     .splitText()
-    .map { it -> it.trim() } 
+    .map { it -> it.trim() }
     .set { samples_ch }
-*/
 
 Channel
     .fromPath(params.scaffolds)
@@ -28,8 +26,9 @@ Channel
     .fromPath(params.mask_genome)
     .map { file ->
         def scaffold = (file.toString() =~ /(NC|NW)_\d+\.1/)[0][0]
-        return tuple('', scaffold, file)
-    }
+        return tuple(scaffold, file) }
+    .combine(samples_ch)
+    .map { it -> [ it[2], it[0], it[1] ] }
     .set { mask_genome_ch }
 
 log.info """\
@@ -42,10 +41,10 @@ ref         = ${params.ref}
 path        = ${params.path}
 prefix      = ${params.prefix}
 k           = ${params.k}
-samples     = ${params.samples}
 scaffolds   = ${params.scaffolds}
 coverage    = ${params.coverage}
 bam         = ${params.bam}
+mask_genome = ${params.mask_genome}
 """
 
 /*
@@ -93,10 +92,10 @@ process bamcaller {
 }
 
 mask_indiv
-    .join(vcf_bamcalled)
-    .join(mask_genome_ch, by:1)
-    .map { it -> [ it[1], it[0], it[2], it[6], it[4] ] }
-    .set { multihet_in }
+    .join(vcf_bamcalled, by: [0,1])
+    .join(mask_genome_ch, by: [0,1])
+    .map { it -> [ it[0], it[1], it[2], it[4], it[3] ] }
+    .set { multihet_in } 
 
 process multihet_single {
     
@@ -124,13 +123,12 @@ process multihet_single {
         --mask ${sampleId}_${scaffold}.indMask.bed.gz \
         --mask ${scaffold}.genMask.bed.gz \
         ${sampleId}_${scaffold}.bamCalled.vcf.gz \
-        > ${sampleId}_${scaffold}.msmcInput.txt 
+        > ${sampleId}_${scaffold}.msmcInput.txt \
     """
 }
 
 process msmc {
 
-    echo true 
     publishDir "${params.out}/msmc_output"
 
     input:
